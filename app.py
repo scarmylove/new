@@ -14,8 +14,38 @@ app.config.from_object(Config)
 os.makedirs('data', exist_ok=True)
 os.makedirs('static/images', exist_ok=True)
 
+# Initialize Redis/Vercel KV for production
+kv_client = None
+if os.environ.get('VERCEL') == '1':
+    try:
+        import redis
+        kv_url = os.environ.get('KV_REST_API_URL')
+        kv_token = os.environ.get('KV_REST_API_TOKEN')
+        if kv_url and kv_token:
+            # Connect using redis-py with the Vercel KV REST API
+            kv_client = redis.from_url(f"{kv_url}?ssl_cert_reqs=required", decode_responses=True)
+    except Exception as e:
+        print(f"KV connection error: {e}")
+
 
 def load_json(f):
+    """Load data from Vercel KV (production) or JSON files (local)"""
+    # Try KV first if in production
+    if kv_client and os.environ.get('VERCEL') == '1':
+        try:
+            data_str = kv_client.get(f)
+            if data_str:
+                data = json.loads(data_str)
+                if f == 'users.json' and isinstance(data, list):
+                    if normalize_user_passwords(data):
+                        save_json(f, data)
+                return data
+            return [] if f.endswith('.json') else {}
+        except Exception as e:
+            print(f"KV load error for {f}: {e}")
+            return [] if f.endswith('.json') else {}
+    
+    # Fallback to JSON files (local development)
     fp = os.path.join('data', f)
     if os.path.exists(fp):
         with open(fp) as file:
@@ -24,9 +54,19 @@ def load_json(f):
             if normalize_user_passwords(data):
                 save_json(f, data)
         return data
-    return []
+    return [] if f.endswith('.json') else {}
 
 def save_json(f, d):
+    """Save data to Vercel KV (production) or JSON files (local)"""
+    # Save to KV if in production
+    if kv_client and os.environ.get('VERCEL') == '1':
+        try:
+            kv_client.set(f, json.dumps(d))
+            return
+        except Exception as e:
+            print(f"KV save error for {f}: {e}")
+    
+    # Fallback to JSON files (local development)
     with open(os.path.join('data', f), 'w') as file:
         json.dump(d, file, indent=4)
 
