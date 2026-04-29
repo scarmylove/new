@@ -11,22 +11,22 @@ from supabase import create_client, Client
 app = Flask(__name__)
 app.config.from_object(Config)
 
-# Supabase configuration from environment
-url = os.environ.get("SUPABASE_REST_URL")
-key = os.environ.get("SUPABASE_ANON_KEY")
-
 # Supabase connection
 supabase: Client = None
-print(f"DEBUG: SUPABASE_URL = {app.config.get('SUPABASE_URL')}")
-print(f"DEBUG: SUPABASE_KEY = {app.config.get('SUPABASE_KEY')}")
-if app.config['SUPABASE_URL'] and app.config['SUPABASE_KEY']:
+url = app.config.get('SUPABASE_URL')
+key = app.config.get('SUPABASE_KEY')
+
+print(f"DEBUG: SUPABASE_REST_URL = {url}")
+print(f"DEBUG: SUPABASE_ANON_KEY = {key}")
+
+if url and key:
     try:
-        supabase = create_client(app.config['SUPABASE_URL'], app.config['SUPABASE_KEY'])
-        print("DEBUG: Supabase connected successfully")
+        supabase = create_client(url, key)
+        print("✓ DEBUG: Supabase connected successfully")
     except Exception as e:
-        print(f"ERROR: Supabase connection failed: {e}")
+        print(f"✗ ERROR: Supabase connection failed: {e}")
 else:
-    print("ERROR: SUPABASE_URL or SUPABASE_KEY not set!")
+    print("✗ ERROR: SUPABASE_REST_URL or SUPABASE_ANON_KEY not set in environment!")
 
 # Ensure data directory exists (for uploads only)
 os.makedirs('data', exist_ok=True)
