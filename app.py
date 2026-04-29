@@ -11,6 +11,10 @@ from supabase import create_client, Client
 app = Flask(__name__)
 app.config.from_object(Config)
 
+# Supabase configuration from environment
+url = os.environ.get("SUPABASE_REST_URL")
+key = os.environ.get("SUPABASE_ANON_KEY")
+
 # Supabase connection
 supabase: Client = None
 print(f"DEBUG: SUPABASE_URL = {app.config.get('SUPABASE_URL')}")
