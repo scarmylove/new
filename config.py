@@ -15,3 +15,7 @@ class Config:
     # Vercel environment detection
     VERCEL = os.environ.get('VERCEL') == '1'
     VERCEL_ENV = os.environ.get('VERCEL_ENV', 'development')
+    
+    # Supabase configuration
+    SUPABASE_URL = os.environ.get('SUPABASE_URL')
+    SUPABASE_KEY = os.environ.get('SUPABASE_KEY')

@@ -6,69 +6,60 @@ import os
 from datetime import datetime, timedelta
 import hashlib
 from config import Config
+from supabase import create_client, Client
 
 app = Flask(__name__)
 app.config.from_object(Config)
 
-# Ensure data directory exists
+# Supabase connection
+supabase: Client = None
+if app.config['SUPABASE_URL'] and app.config['SUPABASE_KEY']:
+    try:
+        supabase = create_client(app.config['SUPABASE_URL'], app.config['SUPABASE_KEY'])
+    except Exception as e:
+        print(f"Supabase connection error: {e}")
+
+# Ensure data directory exists (for uploads only)
 os.makedirs('data', exist_ok=True)
 os.makedirs('static/images', exist_ok=True)
 
-# Initialize Redis/Vercel KV for production
-kv_client = None
-if os.environ.get('VERCEL') == '1':
+
+def load_json(table_name):
+    """Load data from Supabase table"""
+    if not supabase:
+        return []
     try:
-        import redis
-        kv_url = os.environ.get('KV_REST_API_URL')
-        kv_token = os.environ.get('KV_REST_API_TOKEN')
-        if kv_url and kv_token:
-            # Connect using redis-py with the Vercel KV REST API
-            kv_client = redis.from_url(f"{kv_url}?ssl_cert_reqs=required", decode_responses=True)
+        response = supabase.table(table_name).select("*").execute()
+        if response.data:
+            return response.data
+        return []
     except Exception as e:
-        print(f"KV connection error: {e}")
+        print(f"Supabase load error for {table_name}: {e}")
+        return []
 
 
-def load_json(f):
-    """Load data from Vercel KV (production) or JSON files (local)"""
-    # Try KV first if in production
-    if kv_client and os.environ.get('VERCEL') == '1':
-        try:
-            data_str = kv_client.get(f)
-            if data_str:
-                data = json.loads(data_str)
-                if f == 'users.json' and isinstance(data, list):
-                    if normalize_user_passwords(data):
-                        save_json(f, data)
-                return data
-            return [] if f.endswith('.json') else {}
-        except Exception as e:
-            print(f"KV load error for {f}: {e}")
-            return [] if f.endswith('.json') else {}
-    
-    # Fallback to JSON files (local development)
-    fp = os.path.join('data', f)
-    if os.path.exists(fp):
-        with open(fp) as file:
-            data = json.load(file)
-        if f == 'users.json' and isinstance(data, list):
-            if normalize_user_passwords(data):
-                save_json(f, data)
-        return data
-    return [] if f.endswith('.json') else {}
+def save_json(table_name, data):
+    """Save data to Supabase table (replace entire table)"""
+    if not supabase:
+        return
+    try:
+        # Delete all existing records
+        supabase.table(table_name).delete().neq('id', '').execute()
+        
+        # Insert new data
+        if isinstance(data, list) and data:
+            for item in data:
+                # Ensure id exists for Supabase
+                if 'id' not in item:
+                    item['id'] = str(datetime.now().timestamp()).replace('.', '')
+                supabase.table(table_name).insert(item).execute()
+        elif isinstance(data, dict) and data:
+            if 'id' not in data:
+                data['id'] = str(datetime.now().timestamp()).replace('.', '')
+            supabase.table(table_name).insert(data).execute()
+    except Exception as e:
+        print(f"Supabase save error for {table_name}: {e}")
 
-def save_json(f, d):
-    """Save data to Vercel KV (production) or JSON files (local)"""
-    # Save to KV if in production
-    if kv_client and os.environ.get('VERCEL') == '1':
-        try:
-            kv_client.set(f, json.dumps(d))
-            return
-        except Exception as e:
-            print(f"KV save error for {f}: {e}")
-    
-    # Fallback to JSON files (local development)
-    with open(os.path.join('data', f), 'w') as file:
-        json.dump(d, file, indent=4)
 
 def hash_pwd(pwd):
     return hashlib.sha256(pwd.encode()).hexdigest()
@@ -87,15 +78,17 @@ def default_settings():
 
 
 def load_settings():
-    settings = load_json('settings.json')
+    settings = load_json('settings')
+    if isinstance(settings, list) and settings:
+        settings = settings[0]  # Supabase returns list, take first record
     if not isinstance(settings, dict) or not settings:
         settings = default_settings()
-        save_json('settings.json', settings)
+        save_json('settings', settings)
     return settings
 
 
 def save_settings(settings):
-    save_json('settings.json', settings)
+    save_json('settings', settings)
 
 
 @app.context_processor
@@ -106,7 +99,7 @@ def inject_settings():
 @app.context_processor
 def inject_current_user():
     if 'user' in session:
-        users = load_json('users.json')
+        users = load_json('users')
         user = next((u for u in users if u['name'] == session['user']), None)
         return {'current_user': user}
     return {'current_user': None}
@@ -148,7 +141,7 @@ def api_feedback():
     if request.method == 'POST':
         data = request.json
 
-        feedbacks = load_json('feedback.json')
+        feedbacks = load_json('feedback')
 
         feedbacks.append({
             "name": data['name'],
@@ -157,11 +150,11 @@ def api_feedback():
             "date": datetime.now().strftime("%Y-%m-%d %H:%M")
         })
 
-        save_json('feedback.json', feedbacks)
+        save_json('feedback', feedbacks)
 
         return jsonify({"success": True})
 
-    return jsonify(load_json('feedback.json'))
+    return jsonify(load_json('feedback'))
 
 def role_check(roles):
     def decorator(f):
@@ -188,7 +181,7 @@ def login():
     if request.method == 'POST':
         user = request.form['username']
         pwd = request.form['password']
-        users = load_json('users.json')
+        users = load_json('users')
         u = next((x for x in users if x['username'] == user), None)
         if u and u['password'] == hash_pwd(pwd):
             session['user'] = u['name']
@@ -205,9 +198,9 @@ def logout():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    suppliers = load_json('suppliers.json')
-    orders = load_json('orders.json')
-    payments = load_json('payments.json')
+    suppliers = load_json('suppliers')
+    orders = load_json('orders')
+    payments = load_json('payments')
     
     stats = {
         'suppliers': len(suppliers),
@@ -223,7 +216,7 @@ def dashboard():
 def suppliers():
     if session['role'] not in ['Administrator', 'Purchasing Officer', 'Store Owner']:
         return render_template('403.html'), 403
-    data = load_json('suppliers.json')
+    data = load_json('suppliers')
     return render_template('suppliers.html', suppliers=data, role=session['role'])
 
 @app.route('/api/suppliers', methods=['GET', 'POST'])
@@ -233,27 +226,27 @@ def api_suppliers():
         if session['role'] not in ['Administrator', 'Store Owner']:
             return jsonify({'success': False, 'error': 'Unauthorized'}), 403
         data = request.json
-        suppliers = load_json('suppliers.json')
+        suppliers = load_json('suppliers')
         suppliers.append(data)
-        save_json('suppliers.json', suppliers)
+        save_json('suppliers', suppliers)
         return jsonify({'success': True})
-    return jsonify(load_json('suppliers.json'))
+    return jsonify(load_json('suppliers'))
 
 @app.route('/api/suppliers/<sid>', methods=['DELETE', 'PUT'])
 @login_required
 @role_check(['Administrator', 'Store Owner'])
 def api_supplier(sid):
-    suppliers = load_json('suppliers.json')
+    suppliers = load_json('suppliers')
     if request.method == 'DELETE':
         suppliers = [s for s in suppliers if s['id'] != sid]
-        save_json('suppliers.json', suppliers)
+        save_json('suppliers', suppliers)
         return jsonify({'success': True})
     elif request.method == 'PUT':
         data = request.json
         s = next((x for x in suppliers if x['id'] == sid), None)
         if s:
             s.update(data)
-            save_json('suppliers.json', suppliers)
+            save_json('suppliers', suppliers)
         return jsonify({'success': True})
 
 @app.route('/orders')
@@ -261,8 +254,8 @@ def api_supplier(sid):
 def orders():
     if session['role'] not in ['Administrator', 'Purchasing Officer', 'Finance Officer']:
         return render_template('403.html'), 403
-    data = load_json('orders.json')
-    suppliers = load_json('suppliers.json')
+    data = load_json('orders')
+    suppliers = load_json('suppliers')
     return render_template('purchase_orders.html', orders=data, suppliers=suppliers, role=session['role'])
 
 @app.route('/api/orders', methods=['GET', 'POST'])
@@ -270,11 +263,11 @@ def orders():
 def api_orders():
     if request.method == 'POST':
         data = request.json
-        orders = load_json('orders.json')
+        orders = load_json('orders')
         orders.append(data)
-        save_json('orders.json', orders)
+        save_json('orders', orders)
         return jsonify({'success': True})
-    return jsonify(load_json('orders.json'))
+    return jsonify(load_json('orders'))
 
 @app.route('/api/orders/<po_number>', methods=['PUT'])
 @login_required
@@ -283,11 +276,11 @@ def update_order(po_number):
         return jsonify({'error': 'Unauthorized'}), 403
     
     data = request.json
-    orders = load_json('orders.json')
+    orders = load_json('orders')
     for order in orders:
         if str(order.get('po')) == po_number:
             order.update(data)
-            save_json('orders.json', orders)
+            save_json('orders', orders)
             return jsonify({'success': True})
     return jsonify({'error': 'Order not found'}), 404
 
@@ -295,8 +288,8 @@ def update_order(po_number):
 @login_required
 @role_check(['Finance Officer', 'Administrator'])
 def payments():
-    data = load_json('payments.json')
-    orders = load_json('orders.json')
+    data = load_json('payments')
+    orders = load_json('orders')
     return render_template('payments.html', payments=data, orders=orders, user_role=session.get('role'))
 
 @app.route('/api/payments', methods=['GET', 'POST'])
@@ -304,11 +297,11 @@ def payments():
 def api_payments():
     if request.method == 'POST':
         data = request.json
-        payments = load_json('payments.json')
+        payments = load_json('payments')
         payments.append(data)
-        save_json('payments.json', payments)
+        save_json('payments', payments)
         return jsonify({'success': True})
-    return jsonify(load_json('payments.json'))
+    return jsonify(load_json('payments'))
 
 @app.route('/api/payments/<payment_id>', methods=['PUT'])
 @login_required
@@ -317,20 +310,20 @@ def update_payment(payment_id):
         return jsonify({'error': 'Unauthorized'}), 403
     
     data = request.json
-    payments = load_json('payments.json')
+    payments = load_json('payments')
     for payment in payments:
         if payment['id'] == payment_id:
             payment.update(data)
-            save_json('payments.json', payments)
+            save_json('payments', payments)
             return jsonify({'success': True})
     return jsonify({'error': 'Payment not found'}), 404
 
 @app.route('/backup')
 @login_required
 def backup():
-    suppliers = load_json('suppliers.json')
-    orders = load_json('orders.json')
-    payments = load_json('payments.json')
+    suppliers = load_json('suppliers')
+    orders = load_json('orders')
+    payments = load_json('payments')
     
     return render_template('backup.html', 
         suppliers_count=len(suppliers),
@@ -343,10 +336,10 @@ def backup():
 @app.route('/reports')
 @login_required
 def reports():
-    suppliers = load_json('suppliers.json')
-    orders = load_json('orders.json')
-    payments = load_json('payments.json')
-    feedbacks = load_json('feedback.json')
+    suppliers = load_json('suppliers')
+    orders = load_json('orders')
+    payments = load_json('payments')
+    feedbacks = load_json('feedback')
     
     return render_template('reports.html', 
         suppliers_count=len(suppliers),
@@ -361,7 +354,7 @@ def reports():
 @app.route('/api/chart/orders')
 @login_required
 def chart_orders():
-    orders = load_json('orders.json')
+    orders = load_json('orders')
     statuses = ['Pending', 'Approved', 'Delivered']
     data = [len([o for o in orders if o['status'] == s]) for s in statuses]
     return jsonify({'labels': statuses, 'data': data, 'colors': ['#f59e0b', '#3b82f6', '#10b981']})
@@ -369,8 +362,8 @@ def chart_orders():
 @app.route('/api/chart/suppliers')
 @login_required
 def chart_suppliers():
-    suppliers = load_json('suppliers.json')
-    orders = load_json('orders.json')
+    suppliers = load_json('suppliers')
+    orders = load_json('orders')
     labels = [s['name'] for s in suppliers]
     data = [len([o for o in orders if o['supplier'] == s['name']]) for s in suppliers]
     return jsonify({'labels': labels, 'data': data, 'colors': ['#2563eb', '#dc2626', '#16a34a']})
@@ -379,7 +372,7 @@ def chart_suppliers():
 @login_required
 @role_check(['Administrator'])
 def users():
-    data = load_json('users.json')
+    data = load_json('users')
     for u in data:
         u.pop('password', None)
     return render_template('users.html', users=data)
@@ -388,7 +381,7 @@ def users():
 @login_required
 @role_check(['Administrator'])
 def api_users():
-    users = load_json('users.json')
+    users = load_json('users')
     if request.method == 'POST':
         data = request.json
         if not data.get('username') or not data.get('password') or not data.get('name') or not data.get('role'):
@@ -401,7 +394,7 @@ def api_users():
         data['user_id'] = f'U{next_id:02d}'
         data['status'] = data.get('status', 'Active')
         users.append(data)
-        save_json('users.json', users)
+        save_json('users', users)
         return jsonify({'success': True, 'user': {'user_id': data['user_id'], 'name': data['name'], 'username': data['username'], 'role': data['role'], 'status': data['status']}})
     for u in users:
         u.pop('password', None)
@@ -411,14 +404,14 @@ def api_users():
 @login_required
 @role_check(['Administrator'])
 def api_user(uid):
-    users = load_json('users.json')
+    users = load_json('users')
     user = next((u for u in users if u.get('user_id') == uid), None)
     if not user:
         return jsonify({'success': False, 'error': 'User not found'}), 404
 
     if request.method == 'DELETE':
         users = [u for u in users if u.get('user_id') != uid]
-        save_json('users.json', users)
+        save_json('users', users)
         return jsonify({'success': True})
 
     data = request.json or {}
@@ -436,7 +429,7 @@ def api_user(uid):
     if data.get('password'):
         user['password'] = hash_pwd(data['password'])
 
-    save_json('users.json', users)
+    save_json('users', users)
     return jsonify({'success': True, 'user': {'user_id': user['user_id'], 'name': user['name'], 'username': user['username'], 'role': user['role'], 'status': user['status']}})
 
 @app.route('/settings', methods=['GET', 'POST'])
@@ -473,7 +466,7 @@ def settings():
 @app.route('/profile', methods=['GET', 'POST'])
 @login_required
 def profile():
-    users = load_json('users.json')
+    users = load_json('users')
     user = next((u for u in users if u['name'] == session['user']), None)
     if not user:
         return redirect(url_for('logout'))
@@ -500,7 +493,7 @@ def profile():
                 pic_file.save(os.path.join('static', pic_path))
                 user['profile_picture'] = pic_path
         
-        save_json('users.json', users)
+        save_json('users', users)
         if not message:
             message = 'Profile updated successfully.'
     return render_template('profile.html', user=user, message=message)
