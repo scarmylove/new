@@ -1,0 +1,24 @@
+[
+    {
+        "po": "2",
+        "supplier": "Coca-Cola",
+        "item": "Sprite 1.5",
+        "qty": 100,
+        "price": 45,
+        "total": 4500,
+        "date": "2026-04-04",
+        "delivery": "2026-04-04",
+        "status": "Delivered"
+    },
+    {
+        "po": "3",
+        "supplier": "Coca-Cola",
+        "item": "Sprite 1.5",
+        "qty": 500,
+        "price": 50,
+        "total": 25000,
+        "date": "2026-04-20",
+        "delivery": "2026-04-21",
+        "status": "Delivered"
+    }
+]

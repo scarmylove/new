@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ settings.system_name or 'SPOMS' }}</title>
+
+<style>
+
+/* ================= GLOBAL ================= */
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body{
+overflow-x:hidden;
+
+/* BACKGROUND IMAGE */
+background:
+linear-gradient(rgba(0,0,0,0.55),rgba(0,0,0,0.55)),
+url("{{ url_for('static', filename='images/spoms.png') }}");
+
+background-size:cover;
+background-position:62% 38%;
+background-repeat:no-repeat;
+background-attachment:fixed;
+}
+
+
+/* ================= NAVBAR ================= */
+
+.top-nav{
+position:fixed;
+top:0;
+width:100%;
+display:flex;
+justify-content:space-between;
+align-items:center;
+padding:15px 50px;
+background:rgba(0,0,0,0.6);
+backdrop-filter:blur(6px);
+z-index:1000;
+}
+
+/* ===== ANIMATED LOGO ===== */
+
+.logo-text{
+font-size:28px;
+font-weight:700;
+letter-spacing:2px;
+
+background:linear-gradient(90deg,#3b82f6,#60a5fa,#93c5fd,#3b82f6);
+background-size:300%;
+
+-webkit-background-clip:text;
+-webkit-text-fill-color:transparent;
+
+animation:shine 6s linear infinite;
+}
+
+@keyframes shine{
+0%{background-position:0%;}
+100%{background-position:300%;}
+}
+
+/* ================= NAV LINKS ================= */
+
+.nav-links{
+list-style:none;
+display:flex;
+gap:30px;
+}
+
+.nav-links a{
+text-decoration:none;
+color:white;
+font-weight:500;
+transition:0.3s;
+}
+
+.nav-links a:hover{
+color:#3b82f6;
+}
+
+
+/* ================= HERO ================= */
+
+.hero-section{
+    min-height:100vh;
+    display:flex;
+    align-items:flex-start; /* moves content higher */
+    justify-content:center;
+    text-align:center;
+    padding-top:120px; /* controls height */
+}
+
+/* Move SPOMS higher */
+
+.hero-content{
+color:white;
+animation:slideUp 1s ease forwards;
+margin-top:-40px;
+}
+
+.hero-content h1{
+font-size:60px;
+margin-bottom:10px;
+text-shadow:2px 2px 8px rgba(0,0,0,0.6);
+}
+
+.hero-content p{
+font-size:22px;
+margin-bottom:10px;
+}
+
+/* Move button lower */
+
+.cta-button{
+display:inline-block;
+padding:15px 50px;
+border-radius:8px;
+background:linear-gradient(135deg,#2563eb,#1e40af);
+color:white;
+font-weight:600;
+text-decoration:none;
+transition:0.3s;
+margin-top:300px;
+}
+
+.cta-button:hover{
+transform:translateY(-5px);
+box-shadow:0 15px 40px rgba(37,99,235,0.5);
+}
+
+
+/* ================= SECTIONS ================= */
+
+.section{
+padding:100px 50px;
+margin:60px 20px;
+text-align:center;
+
+background:rgba(255,255,255,0.55);
+backdrop-filter:blur(10px);
+border-radius:15px;
+
+opacity:0;
+transform:translateY(30px);
+transition:all 1s ease;
+}
+
+.section.appear{
+opacity:1;
+transform:translateY(0);
+}
+
+.section h2{
+font-size:36px;
+margin-bottom:40px;
+}
+
+
+/* ================= FEATURE CARDS ================= */
+
+.feature-cards{
+display:flex;
+justify-content:center;
+gap:30px;
+flex-wrap:wrap;
+}
+
+.card{
+background:white;
+padding:30px;
+border-radius:12px;
+box-shadow:0 10px 30px rgba(0,0,0,0.15);
+flex:1 1 250px;
+transition:0.3s;
+}
+
+.card:hover{
+transform:translateY(-8px);
+box-shadow:0 15px 40px rgba(0,0,0,0.2);
+}
+
+
+/* ================= ANIMATIONS ================= */
+
+@keyframes slideUp{
+from{
+opacity:0;
+transform:translateY(40px);
+}
+to{
+opacity:1;
+transform:translateY(0);
+}
+}
+
+
+/* ================= System Title ================= */
+.system-title{
+
+font-size:26px;
+font-weight:900;
+letter-spacing:3px;
+
+text-transform:uppercase;
+
+background:linear-gradient(
+90deg,
+#ffffff,
+#60a5fa,
+#3b82f6,
+#ffffff
+);
+
+background-size:300%;
+
+-webkit-background-clip:text;
+-webkit-text-fill-color:transparent;
+
+animation:glowMove 6s linear infinite;
+
+text-shadow:
+0 0 10px rgba(255,255,255,0.6),
+0 0 20px rgba(59,130,246,0.6),
+0 0 30px rgba(59,130,246,0.6);
+
+margin-top:10px;
+}
+
+/* Animation */
+
+@keyframes glowMove{
+
+0%{
+background-position:0%;
+}
+
+100%{
+background-position:300%;
+}
+
+}
+
+/* ================= RESPONSIVE ================= */
+
+@media(max-width:768px){
+
+.top-nav{
+padding:10px 20px;
+}
+
+.nav-links{
+gap:15px;
+}
+
+.hero-content h1{
+font-size:40px;
+}
+
+.hero-content p{
+font-size:16px;
+}
+
+.cta-button{
+padding:12px 30px;
+font-size:16px;
+}
+
+.feature-cards{
+flex-direction:column;
+}
+
+}
+
+</style>
+</head>
+
+
+
+<body>
+
+
+<!-- ================= NAVBAR ================= -->
+
+<nav class="top-nav">
+
+<div class="logo">
+<span class="logo-text">SPOMS</span>
+</div>
+
+<ul class="nav-links">
+<li><a href="{{ url_for('feedback') }}">Feedback</a></li>
+<li><a href="#features">Features</a></li>
+<li><a href="#description">Description</a></li>
+<li><a href="#about">About Us</a></li>
+<li><a href="{{ url_for('login') }}">Login</a></li>
+</ul>
+
+</nav>
+
+
+
+<!-- ================= HERO ================= -->
+
+<section class="hero-section">
+
+<div class="hero-content">
+    <div style="display:flex; flex-direction:column; align-items:center; gap:18px; margin-bottom:24px;">
+        <div style="width:82px; height:82px; border-radius:24px; background:white; overflow:hidden; display:flex; align-items:center; justify-content:center; box-shadow:0 16px 36px rgba(0,0,0,0.18);">
+            <img src="{{ url_for('static', filename=settings.logo) }}" alt="{{ settings.system_name }} logo" style="max-width:100%; max-height:100%; object-fit:contain;">
+        </div>
+        <h1 class="system-title" style="font-size:64px; margin:0; text-align:center;">{{ settings.system_name }}</h1>
+        <p style="margin:0; font-size:22px; color:#f3f4f6; text-shadow:0 2px 14px rgba(0,0,0,0.6); text-align:center;">Supplier and Purchase Order Management System</p>
+    </div>
+    <a href="{{ url_for('login') }}" class="cta-button">Get Started</a>
+</div>
+
+</section>
+
+
+
+<!-- ================= FEATURES ================= -->
+
+<section id="features" class="section fade-in">
+
+<h2>Features</h2>
+
+<div class="feature-cards">
+
+<div class="card">
+📦 <b>Efficient Supplier Management</b><br><br>
+Easily add, update, and track supplier information in one centralized system.
+</div>
+
+<div class="card">
+📝 <b>Streamlined Purchase Orders</b><br><br>
+Create, approve, and monitor purchase orders from request to delivery.
+</div>
+
+<div class="card">
+📊 <b>Interactive Reporting</b><br><br>
+Generate reports and analytics for suppliers, orders, and payments.
+</div>
+
+</div>
+
+</section>
+
+
+
+<!-- ================= DESCRIPTION ================= -->
+
+<section id="description" class="section fade-in">
+
+<h2>Description</h2>
+
+<p>
+The Supplier and Purchase Order Management System is a computerized information system
+designed to manage supplier records, purchase orders, and payment transactions.
+
+<br><br>
+
+The system aims to improve procurement efficiency, reduce manual errors,
+and ensure accurate monitoring of supplier transactions.
+
+<br><br>
+
+It provides automated reports to support decision-making in organizations
+and ensures transparency in procurement operations.
+</p>
+
+</section>
+
+
+
+<!-- ================= ABOUT ================= -->
+
+<section id="about" class="section fade-in">
+
+<h2>About Us</h2>
+
+<p>
+The Supplier and Purchase Order Management System (SPOMS) was developed by
+Bachelor of Science in Computer Science (BSCS) students from
+Bohol Island State University  Clarin Campus.
+
+<br><br>
+
+The development team is led by <b>Dennis Jr. Lopez</b> together with
+John Lester Poquita, Angel Rose Cepe, and Jennifer Urboda.
+
+<br><br>
+
+The project was created to design a practical system that helps organizations
+manage supplier information and purchase orders efficiently.
+
+<br><br>
+
+Through SPOMS, the team demonstrates knowledge in system analysis,
+software development, and database management while providing
+a modern solution for procurement processes.
+</p>
+
+</section>
+
+
+
+<script>
+
+/* SCROLL ANIMATION */
+
+const faders=document.querySelectorAll(".fade-in");
+
+const appearOptions={
+threshold:0.2,
+rootMargin:"0px 0px -50px 0px"
+};
+
+const appearOnScroll=new IntersectionObserver(function(entries,observer){
+
+entries.forEach(entry=>{
+
+if(!entry.isIntersecting) return;
+
+entry.target.classList.add("appear");
+observer.unobserve(entry.target);
+
+});
+
+},appearOptions);
+
+faders.forEach(fader=>{
+appearOnScroll.observe(fader);
+});
+
+</script>
+
+</body>
+</html>

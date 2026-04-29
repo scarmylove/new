@@ -1,0 +1,20 @@
+[
+    {
+        "id": "1001",
+        "name": "Coca-Cola",
+        "contact": "Dlopez",
+        "email": "dlopez@gmail.com",
+        "phone": "09625008286",
+        "address": "Clarin, Bohol",
+        "status": "Active"
+    },
+    {
+        "id": "1002",
+        "name": "NFA CHINA",
+        "contact": "NFA.china.com",
+        "email": "nfa.china@gmail.com",
+        "phone": "09123456783",
+        "address": "Beijing, China",
+        "status": "Active"
+    }
+]

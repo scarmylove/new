@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+    <h1><i class="fas fa-cog"></i> System Settings</h1>
+</div>
+
+<div class="table-container">
+    <div style="display: grid; gap: 30px; padding: 30px;">
+        {% if message %}
+        <div class="alert success" style="padding: 18px 22px; background: #ecfdf5; color: #166534; border-radius: 14px; border: 1px solid #d1fae5;">
+            {{ message }}
+        </div>
+        {% endif %}
+
+        <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 30px;">
+            <section style="background: white; border-radius: 24px; padding: 32px; box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);">
+                <h2 style="margin-bottom: 22px;">Brand & homepage settings</h2>
+                <form action="/settings" method="post" enctype="multipart/form-data">
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label>System Name</label>
+                        <input type="text" name="system_name" value="{{ settings.system_name }}" placeholder="Enter system name">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label>Logo</label>
+                        <input type="file" name="logo" accept="image/*">
+                        <small style="display:block; margin-top: 8px; color:#6b7280;">Upload a logo that appears on the homepage and dashboard.</small>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label>Homepage Background</label>
+                        <input type="file" name="background" accept="image/*">
+                        <small style="display:block; margin-top: 8px; color:#6b7280;">Upload a homepage background image to keep the same design.</small>
+                    </div>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save Settings</button>
+                </form>
+            </section>
+
+            <aside style="background: #f8fafc; border-radius: 24px; padding: 28px; box-shadow: 0 18px 45px rgba(15,23,42,0.06);">
+                <h2 style="margin-bottom: 22px;">Current preview</h2>
+                <div style="display:flex; gap:16px; align-items:center; margin-bottom:24px;">
+                    <div style="width:84px; height:84px; border-radius:22px; background:white; overflow:hidden; display:flex; align-items:center; justify-content:center; box-shadow:0 16px 36px rgba(15,23,42,0.08);">
+                        <img src="{{ url_for('static', filename=settings.logo) }}" alt="Logo preview" style="max-width:100%; max-height:100%; object-fit:contain;">
+                    </div>
+                    <div>
+                        <p style="margin:0; color:#6b7280; font-size:14px; letter-spacing:0.7px;">System name</p>
+                        <h3 style="margin:8px 0 0;">{{ settings.system_name }}</h3>
+                    </div>
+                </div>
+                <div style="border-radius:24px; overflow:hidden; box-shadow:0 16px 36px rgba(15,23,42,0.08);">
+                    <div style="height:180px; background: linear-gradient(180deg, rgba(15,23,42,0.72), rgba(15,23,42,0.32)), url('{{ url_for('static', filename=settings.homepage_background) }}') center/cover no-repeat;"></div>
+                    <div style="padding:18px 20px; background:white;">
+                        <p style="margin:0; color:#4b5563; font-size:14px;">Homepage background</p>
+                        <p style="margin:8px 0 0; color:#111827; font-size:13px; line-height:1.6;">This image will be shown on the homepage hero section while keeping the existing UI structure.</p>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+</div>
+{% endblock %}

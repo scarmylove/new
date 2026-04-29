@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+    <h1>Dashboard</h1>
+    <p>Welcome back, {{ session['user'] }}!</p>
+</div>
+
+<div class="stats">
+    <div class="card">
+        <i class="fas fa-industry"></i>
+        <h3>{{ stats.suppliers }}</h3>
+        <p>Total Suppliers</p>
+    </div>
+    <div class="card">
+        <i class="fas fa-shopping-cart"></i>
+        <h3>{{ stats.orders }}</h3>
+        <p>Total Orders</p>
+    </div>
+    <div class="card">
+        <i class="fas fa-hourglass-half"></i>
+        <h3>{{ stats.pending }}</h3>
+        <p>Pending Orders</p>
+    </div>
+    <div class="card">
+        <i class="fas fa-check-circle"></i>
+        <h3>{{ stats.completed }}</h3>
+        <p>Completed Orders</p>
+    </div>
+    <div class="card">
+        <i class="fas fa-credit-card"></i>
+        <h3>{{ stats.payments }}</h3>
+        <p>Total Payments</p>
+    </div>
+</div>
+
+<div class="charts">
+    <div class="chart-box">
+        <h3><i class="fas fa-chart-pie"></i> Order Status</h3>
+        <canvas id="ordersChart"></canvas>
+    </div>
+    <div class="chart-box">
+        <h3><i class="fas fa-chart-bar"></i> Suppliers</h3>
+        <canvas id="suppliersChart"></canvas>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    fetch('/api/chart/orders').then(r => r.json()).then(d => {
+        const ctx = document.getElementById('ordersChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: { labels: d.labels, datasets: [{ data: d.data, backgroundColor: d.colors, borderColor: 'white', borderWidth: 2 }] },
+            options: { responsive: true, animation: { duration: 1200 } }
+        });
+    });
+    
+    fetch('/api/chart/suppliers').then(r => r.json()).then(d => {
+        const ctx = document.getElementById('suppliersChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar',
+            data: { labels: d.labels, datasets: [{ label: 'Orders', data: d.data, backgroundColor: d.colors, borderRadius: 8 }] },
+            options: { responsive: true, animation: { duration: 1200 }, scales: { y: { beginAtZero: true } } }
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,328 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-container payments-page">
+    <div class="page-header">
+        <div>
+            <h1><i class="fas fa-credit-card"></i> Payments</h1>
+            <p>Manage payment records</p>
+        </div>
+    </div>
+    
+    <button class="btn btn-primary" id="addBtn" onclick="openModal()" style="margin-bottom: 20px;">
+        <i class="fas fa-plus"></i> Record Payment
+    </button>
+
+    <div class="search-container">
+        <input type="text" id="search" placeholder="Search payments..." class="search-input" onkeyup="filterTable()">
+        <select id="statusFilter" class="filter-select" onchange="filterTable()">
+            <option value="">All Status</option>
+            <option value="Pending">Pending</option>
+            <option value="Partial">Partial</option>
+            <option value="Paid">Paid</option>
+        </select>
+    </div>
+
+    <div class="table-container">
+        <table class="data-table" id="table">
+            <thead>
+                <tr>
+                    <th>Payment ID</th>
+                    <th>PO #</th>
+                    <th>Supplier</th>
+                    <th>Amount</th>
+                    <th>Date</th>
+                    <th>Method</th>
+                    <th>Status</th>
+                    {% if role in ['Administrator', 'Finance Officer'] %}
+                    <th>Actions</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+        </table>
+    </div>
+
+        <div class="modal" id="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Record Payment</h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <form class="form" onsubmit="addPayment(event)">
+                <div class="form-group">
+                    <label>Payment ID *</label>
+                    <input type="text" id="paymentId" required>
+                </div>
+                <div class="form-group">
+                    <label>PO # *</label>
+                    <input type="text" id="po" list="poList" required onchange="populateOrderDetails()">
+                    <datalist id="poList"></datalist>
+                </div>
+                <div class="form-group">
+                    <label>Supplier</label>
+                    <input type="text" id="supplier" readonly style="background: #f9fafb;">
+                </div>
+                <div class="form-group">
+                    <label>Item</label>
+                    <input type="text" id="item" readonly style="background: #f9fafb;">
+                </div>
+                <div class="form-group">
+                    <label>Total Amount</label>
+                    <input type="text" id="totalAmount" readonly style="background: #f9fafb;">
+                </div>
+                <div class="form-group">
+                    <label>Amount to Pay *</label>
+                    <input type="number" id="amount" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>Method *</label>
+                    <select id="method" required>
+                        <option>Bank Transfer</option>
+                        <option>Check</option>
+                        <option>Cash</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Record</button>
+            </form>
+        </div>
+    </div>
+
+        <div class="modal" id="editModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Edit Payment Status</h2>
+                <button class="modal-close" onclick="closeEditModal()">&times;</button>
+            </div>
+            <form class="form" onsubmit="updateStatus(event)">
+                <input type="hidden" id="editPaymentId">
+                <div class="form-group">
+                    <label>Status *</label>
+                    <select id="editStatus" required>
+                        <option value="Pending">Pending</option>
+                        <option value="Partial">Partial</option>
+                        <option value="Paid">Paid</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Update Status</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    let ordersData = []; // Store orders data globally
+    
+    function loadPayments() {
+        fetch('/api/payments').then(r => r.json()).then(data => {
+            document.getElementById('tbody').innerHTML = data.map(p => {
+                const balanceInfo = p.balance > 0 ? ` (Balance: ₱${p.balance.toFixed(2)})` : '';
+                const actions = `{% if role in ['Administrator', 'Finance Officer'] %}<button class="btn btn-sm btn-secondary" onclick="editStatus('${p.id}', '${p.status}')"><i class="fas fa-edit"></i> Edit Status</button>{% endif %}`;
+                return `
+                    <tr>
+                        <td>${p.id}</td>
+                        <td>${p.po}</td>
+                        <td>${p.supplier}</td>
+                        <td>₱${p.amount.toFixed(2)}</td>
+                        <td>${p.date}</td>
+                        <td>${p.method}</td>
+                        <td><span class="status-badge ${p.status.toLowerCase()}">${p.status}${balanceInfo}</span></td>
+                        {% if role in ['Administrator', 'Finance Officer'] %}
+                        <td>${actions}</td>
+                        {% endif %}
+                    </tr>
+                `;
+            }).join('');
+        });
+    }
+    
+    function loadOrders() {
+        fetch('/api/orders').then(r => r.json()).then(data => {
+            ordersData = data; // Store for later use
+            document.getElementById('poList').innerHTML =
+                data.map(o => `<option value="${o.po}">${o.po} - ${o.supplier}</option>`).join('');
+        });
+    }
+    
+    function populateOrderDetails() {
+        const selectedPO = document.getElementById('po').value;
+        const supplierField = document.getElementById('supplier');
+        const itemField = document.getElementById('item');
+        const totalAmountField = document.getElementById('totalAmount');
+        
+        if (selectedPO) {
+            // Find the selected order
+            const selectedOrder = ordersData.find(order => order.po === selectedPO);
+            if (selectedOrder) {
+                supplierField.value = selectedOrder.supplier;
+                itemField.value = selectedOrder.item;
+                totalAmountField.value = '₱' + selectedOrder.total.toFixed(2);
+            }
+        } else {
+            // Clear fields if no PO selected
+            supplierField.value = '';
+            itemField.value = '';
+            totalAmountField.value = '';
+        }
+    }
+    
+    function addPayment(e) {
+        e.preventDefault();
+        
+        const selectedPO = document.getElementById('po').value;
+        const paymentAmount = parseFloat(document.getElementById('amount').value);
+        
+        // Find the selected order to get total
+        const selectedOrder = ordersData.find(order => order.po === selectedPO);
+        const orderTotal = selectedOrder ? selectedOrder.total : 0;
+        
+        // Determine payment status
+        let status = 'Pending';
+        let balance = 0;
+        
+        if (paymentAmount >= orderTotal) {
+            status = 'Paid';
+            balance = 0;
+        } else {
+            status = 'Partial';
+            balance = orderTotal - paymentAmount;
+        }
+        
+        const data = {
+            id: document.getElementById('paymentId').value,
+            po: selectedPO,
+            supplier: document.getElementById('supplier').value,
+            amount: paymentAmount,
+            total_amount: orderTotal,
+            balance: balance,
+            date: new Date().toISOString().split('T')[0],
+            method: document.getElementById('method').value,
+            status: status
+        };
+        
+        fetch('/api/payments', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) })
+            .then(r => r.json()).then(() => { 
+                closeModal(); 
+                loadPayments(); 
+                alert(`Payment recorded! Status: ${status}${balance > 0 ? ` (Balance: ₱${balance.toFixed(2)})` : ''}`);
+            });
+    }
+    
+    function openModal() { 
+        document.getElementById('modal').classList.add('show');
+        // Clear all form fields
+        document.getElementById('paymentId').value = '';
+        document.getElementById('po').value = '';
+        document.getElementById('supplier').value = '';
+        document.getElementById('item').value = '';
+        document.getElementById('totalAmount').value = '';
+        document.getElementById('amount').value = '';
+        document.getElementById('method').value = 'Bank Transfer';
+    }
+    function closeModal() { document.getElementById('modal').classList.remove('show'); }
+    function filterTable() {
+        const searchTerm = document.getElementById('search').value.toLowerCase();
+        const statusFilter = document.getElementById('statusFilter').value.toLowerCase();
+        const rows = document.querySelectorAll('#tbody tr');
+        
+        rows.forEach(row => {
+            const cells = row.querySelectorAll('td');
+            const paymentId = cells[0].textContent.toLowerCase();
+            const po = cells[1].textContent.toLowerCase();
+            const supplier = cells[2].textContent.toLowerCase();
+            const status = cells[6].textContent.toLowerCase();
+            
+            const matchesSearch = paymentId.includes(searchTerm) || po.includes(searchTerm) || supplier.includes(searchTerm);
+            const matchesStatus = statusFilter === '' || status.includes(statusFilter);
+            
+            if (matchesSearch && matchesStatus) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+    
+    function editStatus(paymentId, currentStatus) {
+        document.getElementById('editPaymentId').value = paymentId;
+        document.getElementById('editStatus').value = currentStatus;
+        document.getElementById('editModal').classList.add('show');
+    }
+    
+    function closeEditModal() { document.getElementById('editModal').classList.remove('show'); }
+    
+    function updateStatus(e) {
+        e.preventDefault();
+        const paymentId = document.getElementById('editPaymentId').value;
+        const newStatus = document.getElementById('editStatus').value;
+        
+        // Get current payment data to recalculate balance
+        fetch('/api/payments').then(r => r.json()).then(payments => {
+            const payment = payments.find(p => p.id === paymentId);
+            if (payment) {
+                // Find the order to get total
+                const order = ordersData.find(o => o.po === payment.po);
+                const orderTotal = order ? order.total : payment.total_amount || 0;
+                
+                let balance = 0;
+                let finalStatus = newStatus;
+                if (newStatus === 'Paid') {
+                    balance = 0;
+                } else if (newStatus === 'Partial') {
+                    balance = orderTotal - payment.amount;
+                    if (balance <= 0) {
+                        finalStatus = 'Paid';
+                        balance = 0;
+                    }
+                } else { // Pending
+                    balance = orderTotal;
+                }
+                
+                fetch(`/api/payments/${paymentId}`, { 
+                    method: 'PUT', 
+                    headers: {'Content-Type': 'application/json'}, 
+                    body: JSON.stringify({status: finalStatus, balance: balance}) 
+                })
+                .then(r => r.json()).then(data => {
+                    if (data.success) {
+                        closeEditModal();
+                        loadPayments();
+                        alert('Status updated successfully!');
+                    } else {
+                        alert('Error updating status: ' + (data.error || 'Unknown error'));
+                    }
+                });
+            }
+        });
+    }
+    
+    loadOrders();
+    loadPayments();
+</script>
+
+<style>
+    .status-badge {
+        display: inline-block;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 12px;
+        text-transform: capitalize;
+    }
+    
+    .status-badge.pending {
+        background: #fef3c7;
+        color: #92400e;
+    }
+    
+    .status-badge.partial {
+        background: #fcd34d;
+        color: #78350f;
+    }
+    
+    .status-badge.paid {
+        background: #d1fae5;
+        color: #065f46;
+    }
+</style>
+
+{% endblock %}

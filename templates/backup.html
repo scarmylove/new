@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+    <h1><i class="fas fa-file-alt"></i> Reports</h1>
+</div>
+
+<div class="stats">
+    <div class="card">
+        <i class="fas fa-industry"></i>
+        <h3>{{ suppliers_count }}</h3>
+        <p>Suppliers</p>
+    </div>
+    <div class="card">
+        <i class="fas fa-shopping-cart"></i>
+        <h3>{{ orders_count }}</h3>
+        <p>Orders</p>
+    </div>
+    <div class="card">
+        <i class="fas fa-money-bill-wave"></i>
+        <h3>₱{{ "{:,.0f}".format(orders_value) }}</h3>
+        <p>Order Value</p>
+    </div>  
+    <div class="card">
+        <i class="fas fa-credit-card"></i>
+        <h3>{{ payments_count }}</h3>
+        <p>Payments</p>
+    </div>
+    <div class="card">
+        <i class="fas fa-money-bill-wave"></i>
+        <h3>₱{{ "{:,.0f}".format(payments_total) }}</h3>
+        <p>Paid</p>
+    </div>
+</div>
+
+<div class="charts">
+    <div class="chart-box">
+        <h3><i class="fas fa-chart-bar"></i> Summary</h3>
+        <p>📊 Generate detailed reports for better insights.</p>
+        <button class="btn btn-primary" style="margin-top: 10px;" onclick="exportReport()"><i class="fas fa-download"></i> Export</button>
+    </div>
+</div>
+<script>
+    function exportReport() {
+        const rows = [
+            ['Metric', 'Value'],
+            ['Suppliers', '{{ suppliers_count }}'],
+            ['Orders', '{{ orders_count }}'],
+            ['Order Value', '₱{{ "{:,.0f}".format(orders_value) }}'],
+            ['Payments', '{{ payments_count }}'],
+            ['Paid', '₱{{ "{:,.0f}".format(payments_total) }}']
+        ];
+        const csv = rows
+            .map(r => r.map(c => `"${c.replace(/"/g, '""')}"`).join(','))
+            .join('\r\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'report-summary.csv';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+</script>
+{% endblock %}

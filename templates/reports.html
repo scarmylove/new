@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+    <h1><i class="fas fa-shopping-cart"></i> Purchase Order Reports</h1>
+    <p>View all purchase orders and their delivery status</p>
+</div>
+
+<div class="table-container">
+    <table id="poReportTable">
+        <thead>
+            <tr>
+                <th>PO #</th>
+                <th>Supplier</th>
+                <th>Item</th>
+                <th>Qty</th>
+                <th>Unit Price</th>
+                <th>Total Amount</th>
+                <th>Order Date</th>
+                <th>Delivery Date</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for order in orders %}
+                {% if order.status != 'Cancelled' %}
+                <tr class="status-{{ order.status.lower().replace(' ', '-') }}">
+                    <td><strong>{{ order.po }}</strong></td>
+                    <td>{{ order.supplier }}</td>
+                    <td>{{ order.item }}</td>
+                    <td>{{ order.qty }}</td>
+                    <td>₱{{ "%.2f"|format(order.price) }}</td>
+                    <td>₱{{ "%.2f"|format(order.total) }}</td>
+                    <td>{{ order.date }}</td>
+                    <td>{{ order.delivery }}</td>
+                    <td>
+                        {% if order.status == 'Delivered' %}
+                            <span class="badge delivered"><i class="fas fa-check-circle"></i> {{ order.status }}</span>
+                        {% elif order.status == 'Pending' %}
+                            <span class="badge pending"><i class="fas fa-clock"></i> {{ order.status }}</span>
+                        {% else %}
+                            <span class="badge approved"><i class="fas fa-check"></i> {{ order.status }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endif %}
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="charts">
+    <div class="summary-box">
+        <h3><i class="fas fa-chart-pie"></i> Order Summary</h3>
+        <p><strong>Total Orders (Excluding Cancelled):</strong> {{ orders|rejectattr('status', 'equalto', 'Cancelled')|list|length }}</p>
+        <p><strong>Pending Orders:</strong> {{ orders|selectattr('status', 'equalto', 'Pending')|list|length }}</p>
+        <p><strong>Delivered Orders:</strong> {{ orders|selectattr('status', 'equalto', 'Delivered')|list|length }}</p>
+        <p><strong>Approved Orders:</strong> {{ orders|selectattr('status', 'equalto', 'Approved')|list|length }}</p>
+    </div>
+</div>
+
+<script>
+    function filterTable(status) {
+        const rows = document.querySelectorAll('#poReportTable tbody tr');
+        rows.forEach(row => {
+            if (status === 'all' || row.textContent.includes(status)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+</script>
+
+<style>
+    .badge {
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .badge.delivered { background: #10b981; color: white; }
+    .badge.pending { background: #f59e0b; color: white; }
+    .badge.approved { background: #3b82f6; color: white; }
+    tr.status-delivered { background: rgba(16, 185, 129, 0.08); }
+    tr.status-pending { background: rgba(245, 158, 11, 0.08); }
+    tr.status-approved { background: rgba(59, 130, 246, 0.08); }
+    tr.status-delivered td, tr.status-pending td, tr.status-approved td {
+        border-color: rgba(0,0,0,0.08);
+    }
+    .summary-box {
+        background: white;
+        padding: 25px;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        margin-top: 30px;
+    }
+    .summary-box h3 {
+        margin-bottom: 20px;
+        font-size: 18px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .summary-box p {
+        margin: 10px 0;
+        color: #333;
+    }
+</style>
+{% endblock %}

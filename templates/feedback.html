@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SPOMS Feedback</title>
+
+<style>
+
+/* ================= BODY ================= */
+
+body{
+    font-family:'Segoe UI',sans-serif;
+    margin:0;
+    padding:0;
+    color:white;
+
+    /* Background placeholder */
+    background: 
+        linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), /* dark fade overlay */
+        url("{{ url_for('static', filename='images/site-logo-1775276229.png') }}") no-repeat 62% 38%;
+    background-size: cover; /* cover the whole viewport */
+}
+
+/* ================= TOP BAR ================= */
+
+.top-bar{
+display:flex;
+justify-content:space-between;
+align-items:center;
+padding:20px 40px;
+background:rgba(0,0,0,0.25);
+backdrop-filter:blur(5px);
+}
+
+.title{
+font-size:26px;
+font-weight:bold;
+letter-spacing:1px;
+}
+
+/* BACK BUTTON */
+
+.back-btn{
+text-decoration:none;
+background:white;
+color:#1e3a8a;
+padding:8px 18px;
+border-radius:6px;
+font-weight:600;
+transition:0.3s;
+}
+
+.back-btn:hover{
+background:#e2e8f0;
+}
+
+/* ================= MAIN CONTAINER ================= */
+
+.container{
+max-width:900px;
+margin:40px auto;
+background:white;
+color:black;
+padding:35px;
+border-radius:12px;
+box-shadow:0 10px 30px rgba(0,0,0,0.3);
+}
+
+/* ================= HEADINGS ================= */
+
+h3{
+margin-top:30px;
+}
+
+/* ================= FORM ================= */
+
+input, textarea{
+width:100%;
+padding:12px;
+margin-top:10px;
+border-radius:8px;
+border:1px solid #ccc;
+font-size:15px;
+}
+
+textarea{
+height:120px;
+resize:none;
+}
+
+/* ================= BUTTON ================= */
+
+button{
+margin-top:15px;
+padding:12px 30px;
+border:none;
+border-radius:8px;
+background:#2563eb;
+color:white;
+font-weight:bold;
+cursor:pointer;
+transition:0.3s;
+}
+
+button:hover{
+background:#1e40af;
+}
+
+/* ================= STARS ================= */
+
+.stars{
+font-size:30px;
+margin-top:10px;
+cursor:pointer;
+color:#ccc;
+}
+
+.stars span{
+transition:0.2s;
+}
+
+.stars span.active{
+color:gold;
+}
+
+/* ================= AVERAGE RATING ================= */
+
+.average{
+text-align:center;
+font-size:24px;
+font-weight:bold;
+margin-bottom:20px;
+}
+
+/* ================= FEEDBACK LIST ================= */
+
+.feedback-list{
+margin-top:40px;
+}
+
+.feedback-card{
+background:#f1f5f9;
+padding:15px;
+margin-top:15px;
+border-radius:8px;
+box-shadow:0 3px 10px rgba(0,0,0,0.1);
+}
+
+.feedback-card b{
+font-size:16px;
+}
+
+.rating{
+color:gold;
+font-size:18px;
+margin-top:5px;
+}
+
+small{
+color:gray;
+margin-left:10px;
+}
+
+</style>
+</head>
+
+<body>
+
+<!-- ================= TOP BAR ================= -->
+
+<div class="top-bar">
+
+<div class="title">
+SPOMS Feedback System
+</div>
+
+<a href="{{ url_for('home') }}" class="back-btn">
+← Back to Homepage
+</a>
+
+</div>
+
+
+<!-- ================= MAIN CONTAINER ================= -->
+
+<div class="container">
+
+<div class="average">
+Average Rating ⭐ <span id="avgRating">0</span>/5
+</div>
+
+<h3>Send Feedback</h3>
+
+<input type="text" id="name" placeholder="Your Name">
+
+<textarea id="message" placeholder="Your feedback..."></textarea>
+
+<div class="stars" id="stars">
+<span data-value="1">★</span>
+<span data-value="2">★</span>
+<span data-value="3">★</span>
+<span data-value="4">★</span>
+<span data-value="5">★</span>
+</div>
+
+<button onclick="submitFeedback()">Submit Feedback</button>
+
+<div class="feedback-list">
+
+<h3>All Feedback</h3>
+
+<div id="feedbackContainer"></div>
+
+</div>
+
+</div>
+
+
+<script>
+
+let rating = 0
+
+// STAR RATING
+
+document.querySelectorAll("#stars span").forEach(star=>{
+star.addEventListener("click",function(){
+
+rating=this.dataset.value
+
+document.querySelectorAll("#stars span").forEach(s=>s.classList.remove("active"))
+
+for(let i=0;i<rating;i++){
+document.querySelectorAll("#stars span")[i].classList.add("active")
+}
+
+})
+})
+
+
+// SUBMIT FEEDBACK
+
+function submitFeedback(){
+
+let name=document.getElementById("name").value
+let message=document.getElementById("message").value
+
+if(name=="" || message=="" || rating==0){
+alert("Please complete the form")
+return
+}
+
+fetch("/api/feedback",{
+
+method:"POST",
+
+headers:{
+"Content-Type":"application/json"
+},
+
+body:JSON.stringify({
+name:name,
+message:message,
+rating:rating
+})
+
+})
+.then(res=>res.json())
+.then(data=>{
+
+document.getElementById("name").value=""
+document.getElementById("message").value=""
+rating=0
+
+document.querySelectorAll("#stars span").forEach(s=>s.classList.remove("active"))
+
+loadFeedback()
+
+})
+
+}
+
+
+// LOAD FEEDBACK
+
+function loadFeedback(){
+
+fetch("/api/feedback")
+.then(res=>res.json())
+.then(data=>{
+
+let container=document.getElementById("feedbackContainer")
+
+container.innerHTML=""
+
+let total=0
+
+data.forEach(f=>{
+
+total+=parseInt(f.rating)
+
+let stars=""
+
+for(let i=0;i<f.rating;i++){
+stars+="★"
+}
+
+container.innerHTML+=`
+<div class="feedback-card">
+<b>${f.name}</b> <small>${f.date}</small>
+<div class="rating">${stars}</div>
+<p>${f.message}</p>
+</div>
+`
+
+})
+
+if(data.length>0){
+document.getElementById("avgRating").innerText=(total/data.length).toFixed(1)
+}
+
+})
+
+}
+
+loadFeedback()
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,32 @@
+[
+    {
+        "name": "Dennis",
+        "message": "This System is awesome!",
+        "rating": "5",
+        "date": "2026-03-11 22:34"
+    },
+    {
+        "name": "Dr. WakWak",
+        "message": "Yehooooo",
+        "rating": "5",
+        "date": "2026-03-11 22:44"
+    },
+    {
+        "name": "Den",
+        "message": "This system is awesome and good to use!",
+        "rating": "5",
+        "date": "2026-03-12 21:59"
+    },
+    {
+        "name": "Janiiii",
+        "message": "hahahahahhaha",
+        "rating": "5",
+        "date": "2026-03-16 08:34"
+    },
+    {
+        "name": "Cepe",
+        "message": "Oki",
+        "rating": "4",
+        "date": "2026-03-16 11:44"
+    }
+]

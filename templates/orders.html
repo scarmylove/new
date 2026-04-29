@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+    <h1><i class="fas fa-shopping-cart"></i> Purchase Orders</h1>
+</div>
+
+{% if role in ['Administrator', 'Purchasing Officer'] %}
+<button class="btn btn-primary" id="addBtn" onclick="openModal()">
+    <i class="fas fa-plus"></i> Create Order
+</button>
+{% endif %}
+
+<div class="search-container">
+    <input type="text" id="search" placeholder="Search..." class="search-input" onkeyup="filterTable()">
+    <select id="filter" class="filter-select" onchange="filterTable()">
+        <option value="">All Status</option>
+        <option value="Pending">Pending</option>
+        <option value="Approved">Approved</option>
+        <option value="Delivered">Delivered</option>
+    </select>
+</div>
+
+<div class="table-container">
+    <table id="table">
+        <thead>
+            <tr>
+                <th>PO #</th>
+                <th>Supplier</th>
+                <th>Item</th>
+                <th>Qty</th>
+                <th>Unit Price</th>
+                <th>Total</th>
+                <th>Date</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+    </table>
+</div>
+
+<div class="modal" id="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Create Order</h2>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <form class="form" onsubmit="addOrder(event)">
+            <div class="form-group">
+                <label>PO # *</label>
+                <input type="text" id="po" required>
+            </div>
+            <div class="form-group">
+                <label>Supplier *</label>
+                <select id="supplier" required>
+                    <option value="">Select...</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Item *</label>
+                <input type="text" id="item" required>
+            </div>
+            <div class="form-group">
+                <label>Qty *</label>
+                <input type="number" id="qty" min="1" required>
+            </div>
+            <div class="form-group">
+                <label>Unit Price *</label>
+                <input type="number" id="price" step="0.01" required>
+            </div>
+            <div class="form-group">
+                <label>Total Amount</label>
+                <input type="text" id="total" readonly style="background: #f9fafb;">
+            </div>
+            <div class="form-group">
+                <label>Delivery Date</label>
+                <input type="date" id="delivery">
+            </div>
+            <button type="submit" class="btn btn-primary">Create</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    function loadOrders() {
+        fetch('/api/orders').then(r => r.json()).then(data => {
+            const tbody = document.getElementById('tbody');
+            tbody.innerHTML = data.map(o => `
+                <tr>
+                    <td><a href="#" onclick="showOrderDetails('${o.po}')" style="color: #2563eb; text-decoration: underline;">${o.po}</a></td>
+                    <td>${o.supplier}</td>
+                    <td>${o.item}</td>
+                    <td>${o.qty}</td>
+                    <td>₱${o.price.toFixed(2)}</td>
+                    <td>₱${o.total.toFixed(2)}</td>
+                    <td>${o.date}</td>
+                    <td><span class="badge ${o.status.toLowerCase()}">${o.status}</span></td>
+                    <td><button class="btn-icon" onclick="showOrderDetails('${o.po}')"><i class="fas fa-eye"></i></button></td>
+                </tr>
+            `).join('');
+        });
+    }
+    
+    function loadSuppliers() {
+        fetch('/api/suppliers').then(r => r.json()).then(data => {
+            const select = document.getElementById('supplier');
+            select.innerHTML = '<option value="">Select...</option>' + data.map(s => `<option value="${s.name}">${s.name}</option>`).join('');
+        });
+    }
+    
+    function calculateTotal() {
+        const qty = parseFloat(document.getElementById('qty').value) || 0;
+        const price = parseFloat(document.getElementById('price').value) || 0;
+        const total = qty * price;
+        document.getElementById('total').value = total.toFixed(2);
+    }
+    
+    function showOrderDetails(poId) {
+        fetch('/api/orders').then(r => r.json()).then(data => {
+            const order = data.find(o => o.po === poId);
+            if (order) {
+                alert(`Order Details:\n\nPO: ${order.po}\nSupplier: ${order.supplier}\nItem: ${order.item}\nQuantity: ${order.qty}\nUnit Price: ₱${order.price.toFixed(2)}\nTotal Amount: ₱${order.total.toFixed(2)}\nDate: ${order.date}\nDelivery: ${order.delivery || 'N/A'}\nStatus: ${order.status}`);
+            }
+        });
+    }
+    
+    function addOrder(e) {
+        e.preventDefault();
+        const qty = parseInt(document.getElementById('qty').value);
+        const price = parseFloat(document.getElementById('price').value);
+        const data = {
+            po: document.getElementById('po').value,
+            supplier: document.getElementById('supplier').value,
+            item: document.getElementById('item').value,
+            qty: qty,
+            price: price,
+            total: qty * price,
+            date: new Date().toISOString().split('T')[0],
+            delivery: document.getElementById('delivery').value,
+            status: 'Pending'
+        };
+        fetch('/api/orders', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data) })
+            .then(r => r.json()).then(() => { closeModal(); loadOrders(); alert('Order created!'); });
+    }
+    
+    function openModal() { 
+        document.getElementById('modal').classList.add('show');
+        // Add event listeners for auto-calculation
+        document.getElementById('qty').addEventListener('input', calculateTotal);
+        document.getElementById('price').addEventListener('input', calculateTotal);
+        // Clear form
+        document.getElementById('po').value = '';
+        document.getElementById('supplier').value = '';
+        document.getElementById('item').value = '';
+        document.getElementById('qty').value = '';
+        document.getElementById('price').value = '';
+        document.getElementById('total').value = '0.00';
+        document.getElementById('delivery').value = '';
+    }
+    function closeModal() { document.getElementById('modal').classList.remove('show'); }
+    function filterTable() {
+        const search = document.getElementById('search').value.toLowerCase();
+        const filter = document.getElementById('filter').value;
+        document.querySelectorAll('#tbody tr').forEach(row => {
+            const text = row.textContent.toLowerCase();
+            const status = row.querySelector('.badge')?.textContent || '';
+            const match = text.includes(search) && (!filter || status === filter);
+            row.style.display = match ? '' : 'none';
+        });
+    }
+    
+    loadSuppliers();
+    loadOrders();
+</script>
+{% endblock %}

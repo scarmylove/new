@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="fas fa-user"></i> My Profile</h1>
+    <p>Manage your account information</p>
+</div>
+
+{% if message %}
+<div class="alert" style="background: {% if 'success' in message %}#d1fae5{% else %}#fee2e2{% endif %}; color: {% if 'success' in message %}#065f46{% else %}#7f1d1d{% endif %}; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+    {{ message }}
+</div>
+{% endif %}
+
+<div class="card">
+    <h3>Profile Information</h3>
+    
+    {% if user.get('profile_picture') %}
+    <div style="text-align: center; margin-bottom: 20px;">
+        <img src="{{ url_for('static', filename=user.profile_picture) }}" alt="Profile Picture" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 3px solid var(--primary);">
+    </div>
+    {% endif %}
+    
+    <form method="POST" enctype="multipart/form-data" class="form">
+        <div class="form-group">
+            <label for="profile_picture">Profile Picture</label>
+            <input type="file" id="profile_picture" name="profile_picture" accept="image/*">
+            <small style="color: var(--gray);">Upload a new profile picture (PNG, JPG, JPEG, GIF, SVG)</small>
+        </div>
+        
+        <div class="form-group">
+            <label for="name">Full Name</label>
+            <input type="text" id="name" name="name" value="{{ user.name }}" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" value="{{ user.username }}" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="password">New Password (leave blank to keep current)</label>
+            <input type="password" id="password" name="password" placeholder="Enter new password">
+        </div>
+        
+        <div class="form-group">
+            <label>Role</label>
+            <input type="text" value="{{ user.role }}" readonly style="background: #f9fafb;">
+        </div>
+        
+        <div class="form-group">
+            <label>Status</label>
+            <input type="text" value="{{ user.status }}" readonly style="background: #f9fafb;">
+        </div>
+        
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save"></i> Update Profile
+        </button>
+    </form>
+</div>
+{% endblock %}

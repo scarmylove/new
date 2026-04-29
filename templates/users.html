@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+    <h1><i class="fas fa-users"></i> Users</h1>
+</div>
+
+<div style="margin-top: 20px;">
+    <button class="btn btn-primary" onclick="openModal()"><i class="fas fa-plus"></i> Add User</button>
+</div>
+
+<div class="table-container" style="margin-top: 20px;">
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Username</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+                <tr id="user-{{ user.user_id }}">
+                    <td>{{ user.user_id }}</td>
+                    <td>{{ user.name }}</td>
+                    <td>{{ user.username }}</td>
+                    <td><span class="badge active">{{ user.role }}</span></td>
+                    <td>{{ user.status }}</td>
+                    <td>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="openEditModal('{{ user.user_id }}')">Edit</button>
+                        <button type="button" class="btn btn-danger btn-sm" onclick="deleteUser('{{ user.user_id }}')">Delete</button>
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="modal" id="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Add User</h2>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <form class="form" id="addUserForm" onsubmit="submitUser(event)">
+            <input type="hidden" id="userId" name="user_id">
+            <div class="form-group">
+                <label>Full Name *</label>
+                <input type="text" id="fullName" name="name" required>
+            </div>
+            <div class="form-group">
+                <label>Username *</label>
+                <input type="text" id="username" name="username" required>
+            </div>
+            <div class="form-group">
+                <label>Password <span id="passwordHelp">*</span></label>
+                <input type="password" id="password" name="password" placeholder="Leave blank to keep current password">
+            </div>
+            <div class="form-group">
+                <label>Role *</label>
+                <select id="role" name="role" required>
+                    <option>Administrator</option>
+                    <option>Purchasing Officer</option>
+                    <option>Finance Officer</option>
+                    <option>Store Owner</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Status *</label>
+                <select id="status" name="status" required>
+                    <option>Active</option>
+                    <option>Inactive</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary" id="submitButton">Create</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    let editingUserId = null;
+
+    function openModal() {
+        editingUserId = null;
+        document.getElementById('modal').classList.add('show');
+        document.getElementById('addUserForm').reset();
+        document.getElementById('userId').value = '';
+        document.getElementById('passwordHelp').textContent = '*';
+        document.getElementById('submitButton').textContent = 'Create';
+        document.querySelector('.modal-header h2').textContent = 'Add User';
+    }
+
+    function closeModal() {
+        document.getElementById('modal').classList.remove('show');
+    }
+
+    async function submitUser(e) {
+        e.preventDefault();
+        const user = {
+            name: document.getElementById('fullName').value.trim(),
+            username: document.getElementById('username').value.trim(),
+            role: document.getElementById('role').value,
+            status: document.getElementById('status').value
+        };
+        const password = document.getElementById('password').value;
+        if (password) {
+            user.password = password;
+        }
+
+        let url = '/api/users';
+        let method = 'POST';
+        if (editingUserId) {
+            url = `/api/users/${editingUserId}`;
+            method = 'PUT';
+        } else if (!password) {
+            alert('Password is required when creating a new user.');
+            return;
+        }
+
+        const response = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(user)
+        });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+            alert(result.error || 'Unable to save user.');
+            return;
+        }
+
+        const tbody = document.querySelector('table tbody');
+        const rowId = `user-${result.user.user_id}`;
+        let row = document.getElementById(rowId);
+
+        if (editingUserId && row) {
+            row.innerHTML = `
+                <td>${result.user.user_id}</td>
+                <td>${result.user.name}</td>
+                <td>${result.user.username}</td>
+                <td><span class="badge active">${result.user.role}</span></td>
+                <td>${result.user.status}</td>
+                <td>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="openEditModal('${result.user.user_id}')">Edit</button>
+                    <button type="button" class="btn btn-danger btn-sm" onclick="deleteUser('${result.user.user_id}')">Delete</button>
+                </td>
+            `;
+        } else {
+            row = document.createElement('tr');
+            row.id = rowId;
+            row.innerHTML = `
+                <td>${result.user.user_id}</td>
+                <td>${result.user.name}</td>
+                <td>${result.user.username}</td>
+                <td><span class="badge active">${result.user.role}</span></td>
+                <td>${result.user.status}</td>
+                <td>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="openEditModal('${result.user.user_id}')">Edit</button>
+                    <button type="button" class="btn btn-danger btn-sm" onclick="deleteUser('${result.user.user_id}')">Delete</button>
+                </td>
+            `;
+            tbody.appendChild(row);
+        }
+
+        closeModal();
+        alert('User saved successfully.');
+    }
+
+    async function openEditModal(userId) {
+        const response = await fetch('/api/users');
+        if (!response.ok) {
+            alert('Unable to load user data.');
+            return;
+        }
+        const users = await response.json();
+        const user = users.find(u => u.user_id === userId);
+        if (!user) {
+            alert('User not found.');
+            return;
+        }
+
+        editingUserId = user.user_id;
+        document.getElementById('userId').value = user.user_id;
+        document.getElementById('fullName').value = user.name;
+        document.getElementById('username').value = user.username;
+        document.getElementById('role').value = user.role;
+        document.getElementById('status').value = user.status || 'Active';
+        document.getElementById('password').value = '';
+        document.getElementById('passwordHelp').textContent = '(leave blank to keep current password)';
+        document.getElementById('submitButton').textContent = 'Save Changes';
+        document.querySelector('.modal-header h2').textContent = 'Edit User';
+        document.getElementById('modal').classList.add('show');
+    }
+
+    async function deleteUser(userId) {
+        if (!confirm('Delete this user?')) {
+            return;
+        }
+        const response = await fetch(`/api/users/${userId}`, { method: 'DELETE' });
+        const result = await response.json();
+        if (!response.ok || !result.success) {
+            alert(result.error || 'Unable to delete user.');
+            return;
+        }
+        const row = document.getElementById(`user-${userId}`);
+        if (row) {
+            row.remove();
+        }
+        alert('User deleted.');
+    }
+</script>
+{% endblock %}
