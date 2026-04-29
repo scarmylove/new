@@ -13,11 +13,16 @@ app.config.from_object(Config)
 
 # Supabase connection
 supabase: Client = None
+print(f"DEBUG: SUPABASE_URL = {app.config.get('SUPABASE_URL')}")
+print(f"DEBUG: SUPABASE_KEY = {app.config.get('SUPABASE_KEY')}")
 if app.config['SUPABASE_URL'] and app.config['SUPABASE_KEY']:
     try:
         supabase = create_client(app.config['SUPABASE_URL'], app.config['SUPABASE_KEY'])
+        print("DEBUG: Supabase connected successfully")
     except Exception as e:
-        print(f"Supabase connection error: {e}")
+        print(f"ERROR: Supabase connection failed: {e}")
+else:
+    print("ERROR: SUPABASE_URL or SUPABASE_KEY not set!")
 
 # Ensure data directory exists (for uploads only)
 os.makedirs('data', exist_ok=True)
@@ -27,14 +32,18 @@ os.makedirs('static/images', exist_ok=True)
 def load_json(table_name):
     """Load data from Supabase table"""
     if not supabase:
+        print(f"ERROR: Supabase client not initialized for table {table_name}")
         return []
     try:
         response = supabase.table(table_name).select("*").execute()
+        print(f"DEBUG: Loaded {len(response.data) if response.data else 0} records from {table_name}")
         if response.data:
             return response.data
         return []
     except Exception as e:
-        print(f"Supabase load error for {table_name}: {e}")
+        print(f"ERROR: Supabase load error for {table_name}: {e}")
+        import traceback
+        traceback.print_exc()
         return []
 
 
@@ -181,12 +190,26 @@ def login():
     if request.method == 'POST':
         user = request.form['username']
         pwd = request.form['password']
+        print(f"DEBUG: Login attempt for username: {user}")
         users = load_json('users')
+        print(f"DEBUG: Found {len(users)} users in database")
+        if users:
+            print(f"DEBUG: First user: username={users[0].get('username')}, name={users[0].get('name')}")
         u = next((x for x in users if x['username'] == user), None)
-        if u and u['password'] == hash_pwd(pwd):
-            session['user'] = u['name']
-            session['role'] = u['role']
-            return redirect(url_for('dashboard'))
+        if u:
+            pwd_hash = hash_pwd(pwd)
+            print(f"DEBUG: User found. Checking password...")
+            print(f"DEBUG: Provided password hash: {pwd_hash[:20]}...")
+            print(f"DEBUG: Stored password hash: {u['password'][:20]}...")
+            if u['password'] == pwd_hash:
+                session['user'] = u['name']
+                session['role'] = u['role']
+                print(f"DEBUG: Login successful for {u['name']}")
+                return redirect(url_for('dashboard'))
+            else:
+                print(f"ERROR: Password mismatch for user {user}")
+        else:
+            print(f"ERROR: User {user} not found in database")
         return render_template('login.html', error='Invalid credentials')
     return render_template('login.html')
 
